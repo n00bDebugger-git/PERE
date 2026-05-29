@@ -1,11 +1,10 @@
-import argparse  # CLI argument parsing (e.g. --path, --json)
-import json      # JSON serialization for report output
+import argparse
+import json
+from scanner import scan_directory
+from analyzer import analyze_file
+from engine import evaluate
 
-from scanner import scan_directory  # Directory traversal and file filtering
-from analyzer import analyze_file   # PE parsing and import extraction
-from engine import evaluate         # Risk scoring engine (rules-based evaluation)
-
-from colorama import Fore, Style, init  # Terminal coloring for better readability
+from colorama import Fore, Style, init  
 
 # Initialize colorama and auto-reset colors after each print
 init(autoreset=True)

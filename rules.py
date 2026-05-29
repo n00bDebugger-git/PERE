@@ -74,20 +74,71 @@ def match_apis(imports, api_dict):
 # Main evaluation logic – combines API scoring and behavioral heuristics
 def evaluate_rules(file_info):
     imports = file_info["imports"]
-    signed = file_info.get("signed", False)
+
+    # signature metadata (trust model)
+    signature = file_info.get("signature", "unsigned")   # unsigned | selfsigned | valid
+    publisher = file_info.get("publisher", None)
 
     total_score = 0
     findings = []
 
-    # Score API categories
-    for name, api_dict in [
+    # trusted vendors list (highest trust level)
+    trusted_publishers = [
+        "Microsoft Corporation",
+        "Google LLC",
+        "Adobe Inc."
+    ]
+
+    # trusted signed binary overrides all scoring
+    if signature == "valid" and publisher in trusted_publishers:
+        return 0, [{
+            "type": "Trusted Vendor Signature",
+            "score": 0,
+            "matches": {
+                "publisher": publisher
+            }
+        }]
+
+    # valid signature but unknown publisher (low trust)
+    if signature == "valid" and publisher not in trusted_publishers:
+        total_score += 20
+        findings.append({
+            "type": "Untrusted Signed Binary",
+            "score": 20,
+            "matches": {
+                "publisher": publisher
+            }
+        })
+
+    # self-signed binary (common in malware or internal tools)
+    elif signature == "selfsigned":
+        total_score += 40
+        findings.append({
+            "type": "Self-Signed Binary",
+            "score": 40,
+            "matches": {}
+        })
+
+    # unsigned binary (no trust signals)
+    elif signature == "unsigned":
+        total_score += 40
+        findings.append({
+            "type": "Unsigned Binary",
+            "score": 40,
+            "matches": {}
+        })
+
+    # API category scoring (behavioral signals)
+    api_groups = [
         ("Memory APIs", memory_apis),
         ("Injection APIs", injection_apis),
         ("Execution APIs", execution_apis),
         ("DLL APIs", dll_apis),
         ("Persistence APIs", persistence_apis),
         ("File APIs", file_apis),
-    ]:
+    ]
+
+    for name, api_dict in api_groups:
         matches = match_apis(imports, api_dict)
 
         if matches:
@@ -100,16 +151,7 @@ def evaluate_rules(file_info):
                 "matches": matches
             })
 
-    # Basic trust heuristic – unsigned binaries are more suspicious
-    if not signed:
-        total_score += 40
-        findings.append({
-            "type": "Unsigned file",
-            "score": 40,
-            "matches": {}
-        })
-
-    # Classic injection chain (allocate → write → execute)
+    # classic process injection pattern detection
     if (
         "VirtualAlloc" in imports and
         "WriteProcessMemory" in imports and
@@ -120,13 +162,13 @@ def evaluate_rules(file_info):
             "type": "Injection Chain",
             "score": 80,
             "matches": {
-                "VirtualAlloc": 0,
-                "WriteProcessMemory": 0,
-                "CreateRemoteThread": 0
+                "VirtualAlloc": 30,
+                "WriteProcessMemory": 45,
+                "CreateRemoteThread": 50
             }
         })
 
-    # Lower-level / stealth injection using NT APIs
+    # stealth injection using NT APIs
     if (
         "OpenProcess" in imports and
         "NtCreateThreadEx" in imports
@@ -136,14 +178,14 @@ def evaluate_rules(file_info):
             "type": "Stealth Injection",
             "score": 60,
             "matches": {
-                "OpenProcess": 0,
-                "NtCreateThreadEx": 0
+                "OpenProcess": 30,
+                "NtCreateThreadEx": 50
             }
         })
 
-    # Dynamic API resolution – typical for loaders and obfuscation
+    # dynamic API resolution typical for loaders
     if (
-        any(x in imports for x in ["LoadLibraryA", "LoadLibraryW"]) and
+        ("LoadLibraryA" in imports or "LoadLibraryW" in imports) and
         "GetProcAddress" in imports
     ):
         total_score += 40
@@ -151,8 +193,8 @@ def evaluate_rules(file_info):
             "type": "Dynamic API Resolution",
             "score": 40,
             "matches": {
-                "LoadLibrary": 0,
-                "GetProcAddress": 0
+                "LoadLibrary": 20,
+                "GetProcAddress": 25
             }
         })
 
