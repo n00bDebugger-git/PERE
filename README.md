@@ -58,6 +58,10 @@ Example:
 python main.py --path C:\samples --extensions exe,dll --json --output findings.json
 ```
 
+## Demo
+<video src="assets/demo.webm" controls></video>
+
+
 ## How It Works
 
 - `main.py` scans the provided directory and invokes `analyzer.analyze_file()` for each matching file.

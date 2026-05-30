@@ -68,8 +68,6 @@ def main():
         ),
     )
 
-    # Extended help menu flag (prints formatted argparse help and exits)
-    parser.add_argument("--help", action="store_true", help="Show extended help and examples")
 
     # Input directory containing binaries to analyze
     parser.add_argument("--path", required=True)
@@ -87,11 +85,6 @@ def main():
     parser.add_argument("--output", default="report.json")
 
     args = parser.parse_args()
-
-    # If user explicitly requested the extended help menu, show it and exit
-    if getattr(args, "help_menu", False):
-        print(parser.format_help())
-        return
 
     # Default file types to scan
     extensions = ["exe", "dll"]
