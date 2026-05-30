@@ -1,12 +1,14 @@
 # PERE — PE Risk Engine
 
-PERE is a lightweight Windows-focused static analysis engine for Portable Executable (PE) files. It inspects imported APIs, examines digital signature metadata, and computes a heuristic risk score to help triage suspicious binaries.
+PERE is a lightweight Windows-focused static analysis engine for Portable Executable (PE) files. It inspects imported APIs, examines digital signature metadata, analyzes section structure, and computes a heuristic risk score to help triage suspicious binaries.
 
 ## Features
 
 - Static PE analysis for `.exe` and `.dll` files
 - Import-based behavioral scoring
-- Behaviorální skórování kombinujících API vzorů (persistence + injection, process hollowing, dropper chování)
+- Behavioral scoring for correlated API patterns (persistence + injection, process hollowing, dropper behavior)
+- Section structure analysis and overlay detection
+- Packer/obfuscation heuristics using entropy and known markers
 - Entropy analysis for packed or obfuscated binaries
 - Detailed signature verification and signer metadata output
 - Signature trust evaluation (`unsigned`, `selfsigned`, `valid`)
@@ -17,7 +19,7 @@ PERE is a lightweight Windows-focused static analysis engine for Portable Execut
 
 ## Important Disclaimer
 
-This tool is not a replacement for endpoint detection and response (EDR) systems. It is a lightweight, rapid triage utility for inspecting PE files (for example binaries that may have been dropped or modified after a compromise). Use it as a first-pass aid during investigations — follow up with full EDR, dynamic analysis, and forensic procedures for definitive conclusions.
+This tool is not a replacement for endpoint detection and response (EDR) systems. It is a lightweight, rapid triage utility for inspecting PE files (for example binaries that may have been dropped, modified, or used in an attack). Use it as a first-pass aid during investigations — follow up with full EDR, dynamic analysis, and forensic procedures for definitive conclusions.
 
 ## Requirements
 
@@ -68,8 +70,8 @@ python main.py --path C:\samples --extensions exe,dll --json --output findings.j
 ## How It Works
 
 - `main.py` scans the provided directory and invokes `analyzer.analyze_file()` for each matching file.
-- `analyzer.py` loads the PE file using `pefile`, extracts imported functions, inspects Authenticode signature metadata, and optionally gathers timestamp metadata.
-- `rules.py` scores detected APIs, signature data, and timestamp anomalies when `--timestamps` is enabled, generating findings and a combined risk score.
+- `analyzer.py` loads the PE file using `pefile`, extracts imported functions, inspects Authenticode signature metadata, analyzes section structure, and optionally gathers timestamp metadata.
+- `rules.py` scores detected APIs, signature data, section anomalies, and timestamp anomalies when `--timestamps` is enabled, generating findings and a combined risk score.
 - `engine.py` currently forwards the evaluation result from `rules.py` and can be extended for future scoring enhancements.
 
 ## Risk Scoring
@@ -87,6 +89,8 @@ Special pattern detections include:
 - `Injection Chain`
 - `Stealth Injection`
 - `Dynamic API Resolution`
+- `Overlay Detected`
+- `Packer / Obfuscator Signature`
 
 Trusted signed binaries from selected publishers can bypass scoring.
 
@@ -94,7 +98,7 @@ Trusted signed binaries from selected publishers can bypass scoring.
 
 - `main.py` — CLI entrypoint and output formatting
 - `scanner.py` — directory traversal and extension filtering
-- `analyzer.py` — PE parsing, import extraction, and signature detection
+- `analyzer.py` — PE parsing, import extraction, signature detection, and section analysis
 - `rules.py` — scoring rules and risk evaluation
 - `engine.py` — evaluation orchestration
 - `requirements.txt` — package dependencies
