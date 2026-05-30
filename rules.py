@@ -201,6 +201,69 @@ def evaluate_rules(file_info):
             }
         })
 
+    # Behavioral scoring: correlated API patterns that increase suspicion
+    persistence_matches = match_apis(imports, persistence_apis)
+    injection_matches = match_apis(imports, injection_apis)
+    execution_matches = match_apis(imports, execution_apis)
+    file_matches = match_apis(imports, file_apis)
+    memory_matches = match_apis(imports, memory_apis)
+
+    if persistence_matches and injection_matches:
+        total_score += 60
+        findings.append({
+            "type": "Persistence + Injection",
+            "score": 60,
+            "matches": {
+                **persistence_matches,
+                **injection_matches
+            }
+        })
+
+    if (
+        ("CreateProcessA" in imports or "CreateProcessW" in imports) and
+        ("WriteProcessMemory" in imports or "SetThreadContext" in imports or "ResumeThread" in imports or "NtCreateThreadEx" in imports)
+    ):
+        total_score += 80
+        findings.append({
+            "type": "Process Hollowing / Remote Injection",
+            "score": 80,
+            "matches": {
+                **match_apis(imports, {"CreateProcessA": 20, "CreateProcessW": 20, "WriteProcessMemory": 45, "SetThreadContext": 45, "ResumeThread": 25, "NtCreateThreadEx": 50})
+            }
+        })
+
+    if persistence_matches and execution_matches:
+        total_score += 40
+        findings.append({
+            "type": "Persistence + Execution",
+            "score": 40,
+            "matches": {
+                **persistence_matches,
+                **execution_matches
+            }
+        })
+
+    if file_matches and persistence_matches:
+        total_score += 30
+        findings.append({
+            "type": "Dropper / Installer Behavior",
+            "score": 30,
+            "matches": {
+                **file_matches,
+                **persistence_matches
+            }
+        })
+
+    if (("GetProcAddress" in imports or "LoadLibraryA" in imports or "LoadLibraryW" in imports or "LdrLoadDll" in imports) and "VirtualProtect" in imports):
+        total_score += 45
+        findings.append({
+            "type": "Loader / Reflective Mapping",
+            "score": 45,
+            "matches": {
+                **match_apis(imports, {"GetProcAddress": 25, "LoadLibraryA": 20, "LoadLibraryW": 20, "LdrLoadDll": 25, "VirtualProtect": 25})
+            }
+        })
+
     timestamp_anomalies = file_info.get("timestamp_anomalies", [])
     for anomaly in timestamp_anomalies:
         total_score += anomaly["score"]
