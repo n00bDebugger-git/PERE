@@ -59,8 +59,8 @@ python main.py --path C:\samples --extensions exe,dll --json --output findings.j
 ```
 
 ## Demo
-<video src="assets/demo.webm" controls></video>
 
+[demo.webm](https://github.com/user-attachments/assets/2da2db48-1300-417a-9111-6d57ac7c6edc)
 
 ## How It Works
 
