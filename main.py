@@ -56,6 +56,17 @@ def print_result(result):
             if value:
                 print(f"  {Fore.YELLOW}{key.capitalize()}: {Style.RESET_ALL}{value}")
 
+    if result.get("entropy"):
+        entropy = result["entropy"]
+        print(f"{Fore.CYAN}Entropy:{Style.RESET_ALL}")
+        if entropy.get("file_entropy") is not None:
+            print(f"  {Fore.YELLOW}File: {Style.RESET_ALL}{entropy['file_entropy']}")
+        if entropy.get("max_section_entropy") is not None:
+            print(f"  {Fore.YELLOW}Max section: {Style.RESET_ALL}{entropy['max_section_entropy']}")
+        if entropy.get("high_entropy_sections"):
+            names = ", ".join([sec["name"] for sec in entropy["high_entropy_sections"][:3]])
+            print(f"  {Fore.YELLOW}High entropy sections: {Style.RESET_ALL}{names}")
+
 
 def main():
     parser = argparse.ArgumentParser(

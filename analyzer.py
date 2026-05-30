@@ -1,8 +1,24 @@
 import os
 import datetime
+import math
 import pefile
 import warnings
 warnings.filterwarnings("ignore") # Supress cryptography warnings about unsupported signature types
+
+
+def calculate_entropy(data):
+    if not data:
+        return 0.0
+    length = len(data)
+    counts = [0] * 256
+    for byte in data:
+        counts[byte] += 1
+    entropy = 0.0
+    for count in counts:
+        if count:
+            freq = count / length
+            entropy -= freq * math.log2(freq)
+    return entropy
 
 # Analyze PE file and extract basic metadata used for risk evaluation
 def analyze_file(path, timestamps=False):
@@ -13,6 +29,17 @@ def analyze_file(path, timestamps=False):
         "publisher": None,
         "imports": []      # List of imported API functions
     }
+
+    try:
+        with open(path, "rb") as f:
+            raw_data = f.read()
+            file_entropy = calculate_entropy(raw_data)
+            info["entropy"] = {
+                "file_entropy": round(file_entropy, 3),
+                "high_entropy_sections": []
+            }
+    except Exception:
+        raw_data = None
 
     if timestamps:
         info["timestamps"] = {}
@@ -98,6 +125,38 @@ def analyze_file(path, timestamps=False):
 
         # Only collect file system timestamps for created and modified times
         # (PE header timestamp is excluded by user request).
+
+        if hasattr(pe, "sections"):
+            max_section_entropy = 0.0
+            section_entropies = []
+            for section in pe.sections:
+                try:
+                    section_name = section.Name.decode(errors="ignore").rstrip("\x00")
+                except Exception:
+                    section_name = "<unknown>"
+
+                try:
+                    section_data = section.get_data()
+                    section_entropy = calculate_entropy(section_data)
+                except Exception:
+                    section_entropy = 0.0
+
+                section_entropies.append({
+                    "name": section_name,
+                    "entropy": round(section_entropy, 3)
+                })
+
+                if section_entropy > max_section_entropy:
+                    max_section_entropy = section_entropy
+
+                if section_entropy >= 7.0:
+                    info["entropy"]["high_entropy_sections"].append({
+                        "name": section_name,
+                        "entropy": round(section_entropy, 3)
+                    })
+
+            info["entropy"]["max_section_entropy"] = round(max_section_entropy, 3)
+            info["entropy"]["sections"] = section_entropies
 
     except Exception:
         pass

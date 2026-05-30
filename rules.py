@@ -201,6 +201,34 @@ def evaluate_rules(file_info):
             }
         })
 
+    # Entropy scoring: high entropy often indicates packing or obfuscation
+    entropy_info = file_info.get("entropy", {})
+    file_entropy = entropy_info.get("file_entropy")
+    max_section_entropy = entropy_info.get("max_section_entropy")
+    high_entropy_sections = entropy_info.get("high_entropy_sections", [])
+
+    if file_entropy is not None and file_entropy >= 7.0:
+        bonus = 30 if file_entropy >= 7.5 else 20
+        total_score += bonus
+        findings.append({
+            "type": "High File Entropy",
+            "score": bonus,
+            "matches": {
+                "file_entropy": file_entropy
+            }
+        })
+
+    if max_section_entropy is not None and max_section_entropy >= 7.0:
+        total_score += 40
+        findings.append({
+            "type": "High Section Entropy",
+            "score": 40,
+            "matches": {
+                "max_section_entropy": max_section_entropy,
+                "sections": ", ".join([s["name"] for s in high_entropy_sections[:3]])
+            }
+        })
+
     # Behavioral scoring: correlated API patterns that increase suspicion
     persistence_matches = match_apis(imports, persistence_apis)
     injection_matches = match_apis(imports, injection_apis)
