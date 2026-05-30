@@ -38,6 +38,24 @@ def print_result(result):
     print(f"\n{Fore.CYAN}File:{Style.RESET_ALL} {result['file']}")
     print(f"{Fore.CYAN}Score:{Style.RESET_ALL} {color}{score} ({level}){Style.RESET_ALL}")
 
+    if result.get("signature_details"):
+        sig = result["signature_details"]
+        print(f"{Fore.CYAN}Signature:{Style.RESET_ALL}")
+        if sig.get("signature_status"):
+            print(f"  {Fore.YELLOW}Status: {Style.RESET_ALL}{sig['signature_status']}")
+        if sig.get("publisher"):
+            print(f"  {Fore.YELLOW}Publisher: {Style.RESET_ALL}{sig['publisher']}")
+        if sig.get("subject_cn"):
+            print(f"  {Fore.YELLOW}Subject CN: {Style.RESET_ALL}{sig['subject_cn']}")
+        if sig.get("issuer_cn"):
+            print(f"  {Fore.YELLOW}Issuer CN: {Style.RESET_ALL}{sig['issuer_cn']}")
+        if sig.get("not_valid_before") and sig.get("not_valid_after"):
+            print(f"  {Fore.YELLOW}Valid: {Style.RESET_ALL}{sig['not_valid_before']} -> {sig['not_valid_after']}")
+        if sig.get("signature_algorithm"):
+            print(f"  {Fore.YELLOW}Algorithm: {Style.RESET_ALL}{sig['signature_algorithm']}")
+        if sig.get("trusted_vendor") is not None:
+            print(f"  {Fore.YELLOW}Trusted vendor: {Style.RESET_ALL}{sig['trusted_vendor']}")
+
     # Findings section (API hits + behavioral detections)
     print(f"{Fore.CYAN}Findings:{Style.RESET_ALL}")
 
@@ -145,7 +163,9 @@ def main():
             "file": file_info["path"],
             "score": score,
             "level": get_level(score),
-            "findings": findings
+            "findings": findings,
+            "signature_details": file_info.get("signature_details", {}),
+            "signature": file_info.get("signature", "unsigned")
         }
 
         if args.timestamps and file_info.get("timestamps"):

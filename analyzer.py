@@ -5,6 +5,12 @@ import pefile
 import warnings
 warnings.filterwarnings("ignore") # Supress cryptography warnings about unsupported signature types
 
+TRUSTED_PUBLISHERS = [
+    "Microsoft Corporation",
+    "Google LLC",
+    "Adobe Inc."
+]
+
 
 def calculate_entropy(data):
     if not data:
@@ -27,7 +33,23 @@ def analyze_file(path, timestamps=False):
         # signature: one of "unsigned", "selfsigned", "valid"
         "signature": "unsigned",
         "publisher": None,
-        "imports": []      # List of imported API functions
+        "imports": [],      # List of imported API functions
+        "signature_details": {
+            "signature_status": "unsigned",
+            "signed": False,
+            "publisher": None,
+            "subject": None,
+            "subject_cn": None,
+            "subject_o": None,
+            "issuer": None,
+            "issuer_cn": None,
+            "issuer_o": None,
+            "not_valid_before": None,
+            "not_valid_after": None,
+            "serial_number": None,
+            "signature_algorithm": None,
+            "trusted_vendor": False
+        }
     }
 
     try:
@@ -96,27 +118,48 @@ def analyze_file(path, timestamps=False):
                             if certs:
                                 cert = certs[0]
                                 subj = cert.subject
+                                issuer = cert.issuer
 
-                                org_attrs = subj.get_attributes_for_oid(NameOID.ORGANIZATION_NAME)
-                                cn_attrs = subj.get_attributes_for_oid(NameOID.COMMON_NAME)
+                                def _get_dn_attr(name, oid):
+                                    attrs = name.get_attributes_for_oid(oid)
+                                    return attrs[0].value if attrs else None
 
-                                publisher = None
-                                if org_attrs:
-                                    publisher = org_attrs[0].value
-                                elif cn_attrs:
-                                    publisher = cn_attrs[0].value
+                                subject_cn = _get_dn_attr(subj, NameOID.COMMON_NAME)
+                                subject_o = _get_dn_attr(subj, NameOID.ORGANIZATION_NAME)
+                                issuer_cn = _get_dn_attr(issuer, NameOID.COMMON_NAME)
+                                issuer_o = _get_dn_attr(issuer, NameOID.ORGANIZATION_NAME)
 
+                                publisher = subject_o or subject_cn
                                 info["publisher"] = publisher
 
                                 try:
-                                    if cert.issuer.rfc4514_string() == cert.subject.rfc4514_string():
+                                    if issuer.rfc4514_string() == subj.rfc4514_string():
                                         info["signature"] = "selfsigned"
                                     else:
                                         info["signature"] = "valid"
                                 except Exception:
                                     info["signature"] = "valid"
+
+                                info["signature_details"].update({
+                                    "signature_status": info["signature"],
+                                    "signed": True,
+                                    "publisher": publisher,
+                                    "subject": subj.rfc4514_string(),
+                                    "subject_cn": subject_cn,
+                                    "subject_o": subject_o,
+                                    "issuer": issuer.rfc4514_string(),
+                                    "issuer_cn": issuer_cn,
+                                    "issuer_o": issuer_o,
+                                    "not_valid_before": cert.not_valid_before.isoformat() + "Z" if cert.not_valid_before else None,
+                                    "not_valid_after": cert.not_valid_after.isoformat() + "Z" if cert.not_valid_after else None,
+                                    "serial_number": format(cert.serial_number, 'X'),
+                                    "signature_algorithm": getattr(cert.signature_hash_algorithm, 'name', None),
+                                    "trusted_vendor": bool(publisher and publisher in TRUSTED_PUBLISHERS)
+                                })
                             else:
                                 info["signature"] = "valid"
+                                info["signature_details"]["signature_status"] = "valid"
+                                info["signature_details"]["signed"] = True
 
                         except Exception:
                             info["signature"] = "valid"

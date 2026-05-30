@@ -8,6 +8,7 @@ PERE is a lightweight Windows-focused static analysis engine for Portable Execut
 - Import-based behavioral scoring
 - Behaviorální skórování kombinujících API vzorů (persistence + injection, process hollowing, dropper chování)
 - Entropy analysis for packed or obfuscated binaries
+- Detailed signature verification and signer metadata output
 - Signature trust evaluation (`unsigned`, `selfsigned`, `valid`)
 - Detection of injection chains and stealth process injection patterns
 - Timestamp collection and anomaly scoring (`--timestamps`)
