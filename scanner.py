@@ -4,6 +4,11 @@ import os
 def scan_directory(path, scanned_extensions):
     files = []
 
+    if not os.path.isdir(path):
+        return files
+
+    normalized_extensions = [ext.lower().lstrip('.') for ext in scanned_extensions if ext]
+
     # Walk through all directories and subdirectories
     for root, dirs, filenames in os.walk(path):
 
@@ -11,10 +16,10 @@ def scan_directory(path, scanned_extensions):
         for f in filenames:
 
             # Check file against all target extensions
-            for extension in scanned_extensions:
+            for extension in normalized_extensions:
 
                 # Case-insensitive extension match (e.g. .exe, .dll)
-                if f.lower().endswith(f".{extension.lower()}"):
+                if f.lower().endswith(f".{extension}"):
 
                     # Store full absolute path to matched file
                     files.append(os.path.join(root, f))

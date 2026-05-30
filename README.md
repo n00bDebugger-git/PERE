@@ -8,8 +8,13 @@ PERE is a lightweight Windows-focused static analysis engine for Portable Execut
 - Import-based behavioral scoring
 - Signature trust evaluation (`unsigned`, `selfsigned`, `valid`)
 - Detection of injection chains and stealth process injection patterns
+- Timestamp collection and anomaly scoring (`--timestamps`)
 - JSON report export
 - Colorized terminal output via `colorama`
+
+## Important Disclaimer
+
+This tool is not a replacement for endpoint detection and response (EDR) systems. It is a lightweight, rapid triage utility for inspecting PE files (for example binaries that may have been dropped or modified after a compromise). Use it as a first-pass aid during investigations — follow up with full EDR, dynamic analysis, and forensic procedures for definitive conclusions.
 
 ## Requirements
 
@@ -43,6 +48,7 @@ python main.py --path C:\path\to\binaries
 Optional arguments:
 
 - `--extensions`: comma-separated extensions to scan (default: `exe,dll`)
+- `--timestamps`: include file and PE timestamp details, and score anomalous dates
 - `--json`: save results to a JSON report
 - `--output`: JSON output filename (default: `report.json`)
 
@@ -55,8 +61,8 @@ python main.py --path C:\samples --extensions exe,dll --json --output findings.j
 ## How It Works
 
 - `main.py` scans the provided directory and invokes `analyzer.analyze_file()` for each matching file.
-- `analyzer.py` loads the PE file using `pefile`, extracts imported functions, and inspects Authenticode signature metadata.
-- `rules.py` scores detected APIs and signature data, generating findings and a combined risk score.
+- `analyzer.py` loads the PE file using `pefile`, extracts imported functions, inspects Authenticode signature metadata, and optionally gathers timestamp metadata.
+- `rules.py` scores detected APIs, signature data, and timestamp anomalies when `--timestamps` is enabled, generating findings and a combined risk score.
 - `engine.py` currently forwards the evaluation result from `rules.py` and can be extended for future scoring enhancements.
 
 ## Risk Scoring

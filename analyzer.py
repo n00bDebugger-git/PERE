@@ -1,9 +1,11 @@
+import os
+import datetime
 import pefile
 import warnings
 warnings.filterwarnings("ignore") # Supress cryptography warnings about unsupported signature types
 
 # Analyze PE file and extract basic metadata used for risk evaluation
-def analyze_file(path):
+def analyze_file(path, timestamps=False):
     info = {
         "path": path,
         # signature: one of "unsigned", "selfsigned", "valid"
@@ -11,6 +13,19 @@ def analyze_file(path):
         "publisher": None,
         "imports": []      # List of imported API functions
     }
+
+    if timestamps:
+        info["timestamps"] = {}
+        try:
+            stats = os.stat(path)
+            info["timestamps"]["modified_epoch"] = int(stats.st_mtime)
+            info["timestamps"]["created_epoch"] = int(stats.st_ctime)
+            info["timestamps"]["accessed_epoch"] = int(stats.st_atime)
+            info["timestamps"]["modified"] = datetime.datetime.utcfromtimestamp(stats.st_mtime).isoformat() + "Z"
+            info["timestamps"]["created"] = datetime.datetime.utcfromtimestamp(stats.st_ctime).isoformat() + "Z"
+            info["timestamps"]["accessed"] = datetime.datetime.utcfromtimestamp(stats.st_atime).isoformat() + "Z"
+        except Exception:
+            pass
 
     try:
         pe = pefile.PE(path)
@@ -80,9 +95,18 @@ def analyze_file(path):
 
                         except Exception:
                             info["signature"] = "valid"
-
         except Exception:
             pass
+
+        if timestamps and "timestamps" in info:
+            if hasattr(pe, "FILE_HEADER"):
+                ts = getattr(pe.FILE_HEADER, "TimeDateStamp", None)
+                if ts and ts > 0:
+                    info["timestamps"]["pe_epoch"] = int(ts)
+                    try:
+                        info["timestamps"]["pe"] = datetime.datetime.utcfromtimestamp(ts).isoformat() + "Z"
+                    except Exception:
+                        info["timestamps"]["pe"] = str(ts)
 
     except Exception:
         pass
