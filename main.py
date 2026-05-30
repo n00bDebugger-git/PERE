@@ -44,14 +44,14 @@ def print_result(result):
     for fnd in result["findings"]:
         print(f"{Fore.MAGENTA}- {fnd['type']} (+{fnd['score']}){Style.RESET_ALL}")
 
-        # List matched APIs (if any)
+        # List matched APIs or anomaly details
         if fnd.get("matches"):
-            for api in fnd["matches"]:
-                print(f"   {Fore.RED}→ {api}{Style.RESET_ALL}")
+            for key, value in fnd["matches"].items():
+                print(f"   {Fore.RED}-> {key}: {Style.RESET_ALL}{value}")
 
     if result.get("timestamps"):
         print(f"{Fore.CYAN}Timestamps:{Style.RESET_ALL}")
-        for key in ["pe", "modified", "created", "accessed"]:
+        for key in ["created", "modified"]:
             value = result["timestamps"].get(key)
             if value:
                 print(f"  {Fore.YELLOW}{key.capitalize()}: {Style.RESET_ALL}{value}")

@@ -20,10 +20,8 @@ def analyze_file(path, timestamps=False):
             stats = os.stat(path)
             info["timestamps"]["modified_epoch"] = int(stats.st_mtime)
             info["timestamps"]["created_epoch"] = int(stats.st_ctime)
-            info["timestamps"]["accessed_epoch"] = int(stats.st_atime)
             info["timestamps"]["modified"] = datetime.datetime.utcfromtimestamp(stats.st_mtime).isoformat() + "Z"
             info["timestamps"]["created"] = datetime.datetime.utcfromtimestamp(stats.st_ctime).isoformat() + "Z"
-            info["timestamps"]["accessed"] = datetime.datetime.utcfromtimestamp(stats.st_atime).isoformat() + "Z"
         except Exception:
             pass
 
@@ -98,15 +96,8 @@ def analyze_file(path, timestamps=False):
         except Exception:
             pass
 
-        if timestamps and "timestamps" in info:
-            if hasattr(pe, "FILE_HEADER"):
-                ts = getattr(pe.FILE_HEADER, "TimeDateStamp", None)
-                if ts and ts > 0:
-                    info["timestamps"]["pe_epoch"] = int(ts)
-                    try:
-                        info["timestamps"]["pe"] = datetime.datetime.utcfromtimestamp(ts).isoformat() + "Z"
-                    except Exception:
-                        info["timestamps"]["pe"] = str(ts)
+        # Only collect file system timestamps for created and modified times
+        # (PE header timestamp is excluded by user request).
 
     except Exception:
         pass

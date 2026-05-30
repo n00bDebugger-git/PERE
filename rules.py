@@ -212,12 +212,8 @@ def evaluate_rules(file_info):
 def annotate_timestamp_anomalies(file_infos):
     valid_epochs = []
     for info in file_infos:
-        ts = None
         timestamps = info.get("timestamps", {})
-        if timestamps.get("pe_epoch") is not None:
-            ts = timestamps["pe_epoch"]
-        elif timestamps.get("modified_epoch") is not None:
-            ts = timestamps["modified_epoch"]
+        ts = timestamps.get("modified_epoch") or timestamps.get("created_epoch")
 
         if ts is not None:
             valid_epochs.append(ts)
@@ -234,36 +230,41 @@ def annotate_timestamp_anomalies(file_infos):
         if not timestamps:
             continue
 
-        ts = timestamps.get("pe_epoch") or timestamps.get("modified_epoch")
+        ts = timestamps.get("modified_epoch") or timestamps.get("created_epoch")
         if ts is None:
             continue
 
+        source = "Modified" if timestamps.get("modified_epoch") is not None else "Created"
+        display_ts = timestamps.get("modified") or timestamps.get("created")
         anomalies = []
 
         if ts > now + 86400:
             anomalies.append({
-                "type": "Future Timestamp",
+                "type": f"Future {source} Timestamp",
                 "score": 30,
                 "matches": {
-                    "timestamp": timestamps.get("pe") or timestamps.get("modified")
+                    "source": source,
+                    "timestamp": display_ts
                 }
             })
 
         if ts < datetime.datetime(2000, 1, 1).timestamp():
             anomalies.append({
-                "type": "Historic Timestamp",
+                "type": f"Historic {source} Timestamp",
                 "score": 20,
                 "matches": {
-                    "timestamp": timestamps.get("pe") or timestamps.get("modified")
+                    "source": source,
+                    "timestamp": display_ts
                 }
             })
 
         if abs(ts - median) >= 3 * 31536000 and len(valid_epochs) > 1:
             anomalies.append({
-                "type": "Timestamp Outlier",
+                "type": f"{source} Timestamp Outlier",
                 "score": 20,
                 "matches": {
-                    "timestamp": timestamps.get("pe") or timestamps.get("modified"),
+                    "source": source,
+                    "timestamp": display_ts,
                     "median": datetime.datetime.utcfromtimestamp(median).isoformat() + "Z"
                 }
             })
