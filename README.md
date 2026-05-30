@@ -59,7 +59,7 @@ python main.py --path C:\samples --extensions exe,dll --json --output findings.j
 ```
 
 ## Demo
-<video src="https://github.com/n00bDebugger-git/PERE/blob/main/assets/demo.webm" controls></video>
+<video src="assets/demo.webm" controls></video>
 
 
 ## How It Works
