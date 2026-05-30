@@ -85,6 +85,23 @@ def print_result(result):
             names = ", ".join([sec["name"] for sec in entropy["high_entropy_sections"][:3]])
             print(f"  {Fore.YELLOW}High entropy sections: {Style.RESET_ALL}{names}")
 
+    section_analysis = result.get("section_analysis", {})
+    if section_analysis:
+        print(f"{Fore.CYAN}Section Analysis:{Style.RESET_ALL}")
+        overlay = section_analysis.get("overlay", {})
+        if overlay.get("present"):
+            print(f"  {Fore.YELLOW}Overlay: {Style.RESET_ALL}{overlay.get('size')} bytes at {overlay.get('start')}")
+            if overlay.get("entropy") is not None:
+                print(f"  {Fore.YELLOW}Overlay entropy: {Style.RESET_ALL}{overlay.get('entropy')}")
+        if section_analysis.get("suspicious_section_names"):
+            print(f"  {Fore.YELLOW}Suspicious sections: {Style.RESET_ALL}{', '.join(section_analysis['suspicious_section_names'])}")
+        if section_analysis.get("invalid_sections"):
+            print(f"  {Fore.YELLOW}Invalid sections: {Style.RESET_ALL}{', '.join(section_analysis['invalid_sections'])}")
+        if section_analysis.get("packer_section_names"):
+            print(f"  {Fore.YELLOW}Packer section names: {Style.RESET_ALL}{', '.join(section_analysis['packer_section_names'])}")
+        if section_analysis.get("packer_signatures"):
+            print(f"  {Fore.YELLOW}Packer signatures: {Style.RESET_ALL}{', '.join(section_analysis['packer_signatures'])}")
+
     if result.get("errors"):
         print(f"{Fore.CYAN}Errors:{Style.RESET_ALL}")
         for error in result["errors"]:
@@ -185,6 +202,8 @@ def main():
             "findings": findings,
             "signature_details": file_info.get("signature_details", {}),
             "signature": file_info.get("signature", "unsigned"),
+            "section_analysis": file_info.get("section_analysis", {}),
+            "sections": file_info.get("sections", []),
             "errors": file_info.get("errors", [])
         }
 

@@ -42,6 +42,12 @@ def analyze_file(path, timestamps=False):
         "publisher": None,
         "imports": [],      # List of imported API functions
         "errors": [],
+        "sections": [],
+        "section_analysis": {},
+        "entropy": {
+            "file_entropy": None,
+            "high_entropy_sections": []
+        },
         "signature_details": {
             "signature_status": "unsigned",
             "signed": False,
@@ -182,11 +188,29 @@ def analyze_file(path, timestamps=False):
         if hasattr(pe, "sections"):
             max_section_entropy = 0.0
             section_entropies = []
+            overlay_start = 0
+            known_names = {".text", ".rdata", ".rsrc", ".data", ".idata", ".edata", ".pdata", ".reloc", ".tls", ".rptr"}
+            packer_name_patterns = ["UPX", "ASPACK", "MPRESS", "PEPACK", "PECUP", "NONSENSE", "MARK", "KPACK", "PETITE", "XPACK", "THUMPER"]
+            suspicious_section_names = []
+            packer_section_names = []
+            invalid_sections = []
+            section_map = {
+                ".text": None,
+                ".rdata": None,
+                ".rsrc": None
+            }
+
             for section in pe.sections:
                 try:
                     section_name = section.Name.decode(errors="ignore").rstrip("\x00")
                 except Exception:
                     section_name = "<unknown>"
+
+                raw_size = int(section.SizeOfRawData)
+                virt_size = int(getattr(section, "Misc_VirtualSize", 0))
+                raw_start = int(section.PointerToRawData)
+                raw_end = raw_start + raw_size
+                overlay_start = max(overlay_start, raw_end)
 
                 try:
                     section_data = section.get_data()
@@ -194,10 +218,20 @@ def analyze_file(path, timestamps=False):
                 except Exception:
                     section_entropy = 0.0
 
-                section_entropies.append({
+                section_info = {
                     "name": section_name,
-                    "entropy": round(section_entropy, 3)
-                })
+                    "virtual_size": virt_size,
+                    "raw_size": raw_size,
+                    "raw_offset": raw_start,
+                    "entropy": round(section_entropy, 3),
+                    "characteristics": int(getattr(section, "Characteristics", 0)),
+                    "is_executable": bool(getattr(section, "Characteristics", 0) & 0x20000000),
+                    "is_writable": bool(getattr(section, "Characteristics", 0) & 0x80000000),
+                    "is_readable": bool(getattr(section, "Characteristics", 0) & 0x40000000)
+                }
+
+                section_entropies.append(section_info)
+                info["sections"].append(section_info)
 
                 if section_entropy > max_section_entropy:
                     max_section_entropy = section_entropy
@@ -208,8 +242,57 @@ def analyze_file(path, timestamps=False):
                         "entropy": round(section_entropy, 3)
                     })
 
+                if section_name.lower() in section_map:
+                    section_map[section_name.lower()] = section_info
+
+                if section_name and section_name.lower() not in known_names:
+                    if any(ch.isalnum() or ch in "._" for ch in section_name):
+                        suspicious_section_names.append(section_name)
+                    else:
+                        invalid_sections.append(section_name)
+
+                upper_name = section_name.upper()
+                if any(pattern in upper_name for pattern in packer_name_patterns):
+                    packer_section_names.append(section_name)
+
             info["entropy"]["max_section_entropy"] = round(max_section_entropy, 3)
             info["entropy"]["sections"] = section_entropies
+
+            overlay_info = {
+                "present": False,
+                "start": None,
+                "size": 0,
+                "entropy": None
+            }
+            if overlay_start < len(pe.__data__):
+                overlay_info["present"] = True
+                overlay_info["start"] = overlay_start
+                overlay_info["size"] = len(pe.__data__) - overlay_start
+                if raw_data is not None and overlay_info["size"] > 0:
+                    overlay_data = pe.__data__[overlay_start:]
+                    overlay_info["entropy"] = round(calculate_entropy(overlay_data), 3)
+
+            info["section_analysis"] = {
+                "overlay": overlay_info,
+                "known_sections": section_map,
+                "suspicious_section_names": suspicious_section_names,
+                "invalid_sections": invalid_sections,
+                "packer_section_names": packer_section_names,
+                "section_count": len(pe.sections)
+            }
+
+            if raw_data is not None:
+                packer_signatures = [b"UPX0", b"UPX1", b"UPX2", b"ASPack", b"MPRESS1", b"MPRESS2", b"PETITE", b"PECompact", b"Themida", b"DRP32", b"NICE" ]
+                raw_upper = raw_data.upper()
+                found = []
+                for sig in packer_signatures:
+                    if sig.upper() in raw_upper:
+                        found.append(sig.decode(errors="ignore"))
+                if found:
+                    info["section_analysis"]["packer_signatures"] = found
+
+    except Exception as e:
+        append_error(info, "pe_analysis", e)
 
     except Exception as e:
         append_error(info, "pe_analysis", e)

@@ -201,6 +201,80 @@ def evaluate_rules(file_info):
             }
         })
 
+    # PE section and overlay/packer heuristics
+    section_analysis = file_info.get("section_analysis", {})
+    overlay = section_analysis.get("overlay", {})
+    suspicious_section_names = section_analysis.get("suspicious_section_names", [])
+    invalid_sections = section_analysis.get("invalid_sections", [])
+    packer_section_names = section_analysis.get("packer_section_names", [])
+    packer_signatures = section_analysis.get("packer_signatures", [])
+    known_sections = section_analysis.get("known_sections", {})
+
+    if overlay.get("present"):
+        overlay_score = 50 if overlay.get("size", 0) >= 8192 else 30
+        total_score += overlay_score
+        findings.append({
+            "type": "Overlay Detected",
+            "score": overlay_score,
+            "matches": {
+                "overlay_size": overlay.get("size"),
+                "overlay_entropy": overlay.get("entropy")
+            }
+        })
+
+    if invalid_sections:
+        total_score += 40
+        findings.append({
+            "type": "Invalid Section Names",
+            "score": 40,
+            "matches": {
+                "sections": ", ".join(invalid_sections)
+            }
+        })
+
+    if suspicious_section_names:
+        total_score += 25
+        findings.append({
+            "type": "Suspicious Section Names",
+            "score": 25,
+            "matches": {
+                "sections": ", ".join(suspicious_section_names)
+            }
+        })
+
+    if packer_section_names:
+        total_score += 50
+        findings.append({
+            "type": "Packer Section Names",
+            "score": 50,
+            "matches": {
+                "sections": ", ".join(packer_section_names)
+            }
+        })
+
+    if packer_signatures:
+        total_score += 60
+        findings.append({
+            "type": "Packer / Obfuscator Signature",
+            "score": 60,
+            "matches": {
+                "signatures": ", ".join(packer_signatures)
+            }
+        })
+
+    if known_sections:
+        for section_label in [".text", ".rdata", ".rsrc"]:
+            section_info = known_sections.get(section_label)
+            if section_info and section_info.get("entropy") is not None and section_info["entropy"] >= 7.0:
+                total_score += 15
+                findings.append({
+                    "type": f"High Entropy {section_label} Section",
+                    "score": 15,
+                    "matches": {
+                        "entropy": section_info["entropy"]
+                    }
+                })
+
     # Entropy scoring: high entropy often indicates packing or obfuscation
     entropy_info = file_info.get("entropy", {})
     file_entropy = entropy_info.get("file_entropy")
