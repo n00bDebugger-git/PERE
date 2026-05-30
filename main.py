@@ -85,6 +85,11 @@ def print_result(result):
             names = ", ".join([sec["name"] for sec in entropy["high_entropy_sections"][:3]])
             print(f"  {Fore.YELLOW}High entropy sections: {Style.RESET_ALL}{names}")
 
+    if result.get("errors"):
+        print(f"{Fore.CYAN}Errors:{Style.RESET_ALL}")
+        for error in result["errors"]:
+            print(f"  {Fore.YELLOW}{error.get('context')}: {Style.RESET_ALL}{error.get('error')}")
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -146,7 +151,16 @@ def main():
     total_files = len(files)
     for index, f in enumerate(files, start=1):
         print(f"{Fore.CYAN}[+] Loading metadata ({index}/{total_files}):{Style.RESET_ALL} {f}", flush=True)
-        file_infos.append(analyze_file(f, timestamps=args.timestamps))
+        try:
+            file_infos.append(analyze_file(f, timestamps=args.timestamps))
+        except Exception as e:
+            file_infos.append({
+                "path": f,
+                "signature": "unsigned",
+                "imports": [],
+                "signature_details": {},
+                "errors": [{"context": "analysis", "error": str(e)}]
+            })
 
     if args.timestamps:
         annotate_timestamp_anomalies(file_infos)
@@ -157,7 +171,12 @@ def main():
         print(f"{Fore.BLUE}[+] Analyzing ({index}/{total_files}):{Style.RESET_ALL} {file_info['path']}", flush=True)
 
         # Evaluate risk score and behavioral findings
-        score, findings = evaluate(file_info)
+        try:
+            score, findings = evaluate(file_info)
+        except Exception as e:
+            file_info.setdefault("errors", []).append({"context": "evaluation", "error": str(e)})
+            score = 0
+            findings = [{"type": "Evaluation Error", "score": 0, "matches": {"error": str(e)}}]
 
         result = {
             "file": file_info["path"],
@@ -165,7 +184,8 @@ def main():
             "level": get_level(score),
             "findings": findings,
             "signature_details": file_info.get("signature_details", {}),
-            "signature": file_info.get("signature", "unsigned")
+            "signature": file_info.get("signature", "unsigned"),
+            "errors": file_info.get("errors", [])
         }
 
         if args.timestamps and file_info.get("timestamps"):

@@ -12,6 +12,13 @@ TRUSTED_PUBLISHERS = [
 ]
 
 
+def append_error(info, context, exc):
+    info.setdefault("errors", []).append({
+        "context": context,
+        "error": str(exc)
+    })
+
+
 def calculate_entropy(data):
     if not data:
         return 0.0
@@ -34,6 +41,7 @@ def analyze_file(path, timestamps=False):
         "signature": "unsigned",
         "publisher": None,
         "imports": [],      # List of imported API functions
+        "errors": [],
         "signature_details": {
             "signature_status": "unsigned",
             "signed": False,
@@ -60,8 +68,9 @@ def analyze_file(path, timestamps=False):
                 "file_entropy": round(file_entropy, 3),
                 "high_entropy_sections": []
             }
-    except Exception:
+    except Exception as e:
         raw_data = None
+        append_error(info, "file_read", e)
 
     if timestamps:
         info["timestamps"] = {}
@@ -71,8 +80,8 @@ def analyze_file(path, timestamps=False):
             info["timestamps"]["created_epoch"] = int(stats.st_ctime)
             info["timestamps"]["modified"] = datetime.datetime.utcfromtimestamp(stats.st_mtime).isoformat() + "Z"
             info["timestamps"]["created"] = datetime.datetime.utcfromtimestamp(stats.st_ctime).isoformat() + "Z"
-        except Exception:
-            pass
+        except Exception as e:
+            append_error(info, "timestamps", e)
 
     try:
         pe = pefile.PE(path)
@@ -161,10 +170,11 @@ def analyze_file(path, timestamps=False):
                                 info["signature_details"]["signature_status"] = "valid"
                                 info["signature_details"]["signed"] = True
 
-                        except Exception:
+                        except Exception as e:
                             info["signature"] = "valid"
-        except Exception:
-            pass
+                            append_error(info, "certificate_parse", e)
+        except Exception as e:
+            append_error(info, "signature_directory", e)
 
         # Only collect file system timestamps for created and modified times
         # (PE header timestamp is excluded by user request).
@@ -201,7 +211,7 @@ def analyze_file(path, timestamps=False):
             info["entropy"]["max_section_entropy"] = round(max_section_entropy, 3)
             info["entropy"]["sections"] = section_entropies
 
-    except Exception:
-        pass
+    except Exception as e:
+        append_error(info, "pe_analysis", e)
 
     return info
