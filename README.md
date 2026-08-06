@@ -1,4 +1,4 @@
-# PERE — PE Risk Engine
+# PERE - PE Risk Engine
 
 PERE is a lightweight Windows-focused static analysis engine for Portable Executable (PE) files. It inspects imported APIs, examines digital signature metadata, analyzes section structure, and computes a heuristic risk score to help triage suspicious binaries.
 
