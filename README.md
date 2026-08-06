@@ -19,7 +19,7 @@ PERE is a lightweight Windows-focused static analysis engine for Portable Execut
 
 ## Important Disclaimer
 
-This tool is not a replacement for endpoint detection and response (EDR) systems. It is a lightweight, rapid triage utility for inspecting PE files (for example binaries that may have been dropped, modified, or used in an attack). Use it as a first-pass aid during investigations — follow up with full EDR, dynamic analysis, and forensic procedures for definitive conclusions.
+This tool is not a replacement for endpoint detection and response (EDR) systems. It is a lightweight, rapid triage utility for inspecting PE files (for example binaries that may have been dropped, modified, or used in an attack). Use it as a first-pass aid during investigations - follow up with full EDR, dynamic analysis, and forensic procedures for definitive conclusions.
 
 ## Requirements
 
